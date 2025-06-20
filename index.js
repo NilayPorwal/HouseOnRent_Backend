@@ -8,7 +8,14 @@ const userRoutes = require('./routes/userRoutes');
 const path = require('path');
 const fs = require('fs');
 
-dotenv.config();
+const env = process.env.NODE_ENV || 'development';
+
+if (env === 'production') {
+	dotenv.config({ path: '.env.prod' });
+} else {
+	dotenv.config({ path: '.env.dev' });
+}
+
 const app = express();
 
 app.use(cors({ origin: '*' }));

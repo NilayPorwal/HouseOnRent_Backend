@@ -1,25 +1,64 @@
 const express = require('express');
 const House = require('../models/House');
+const multer = require('multer');
+const getUserIdFromToken = require('../utils/getUserIdFromToken');
 const router = express.Router();
+
+// Multer setup for image upload
+const storage = multer.diskStorage({
+	destination: function (req, file, cb) {
+		cb(null, 'uploads/');
+	},
+	filename: function (req, file, cb) {
+		cb(null, Date.now() + '-' + file.originalname);
+	}
+});
+const upload = multer({ storage: storage });
 
 // Get all houses
 router.get('/', async (req, res) => {
 	try {
+		const userId = await getUserIdFromToken(req.headers.authorization);
+		if (!userId) {
+			return res.status(401).json({ message: 'Invalid or missing token' });
+		}
 		const houses = await House.find().populate('owner', 'name email');
-		res.json(houses);
+		res.status(201).json(houses);
 	} catch (err) {
-		res.status(500).json({ error: err.message });
+		res.status(401).json({ error: err.message });
 	}
 });
 
 // Add new house
-router.post('/', async (req, res) => {
+router.post('/add', upload.array('images', 5), async (req, res) => {
 	try {
-		const house = new House(req.body);
-		await house.save();
-		res.status(201).json(house);
+		const userId = await getUserIdFromToken(req.headers.authorization);
+		if (!userId) {
+			return res.status(401).json({ message: 'Invalid or missing token' });
+		}
+		const { title, description, price, location, amenities } = req.body;
+
+		const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
+
+		if (!title || !price || !location || imagePaths.length === 0) {
+			return res.status(400).json({ message: 'Missing required fields' });
+		}
+
+		const parsedAmenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+		const newHouse = new House({
+			title,
+			description,
+			price,
+			location,
+			amenities: parsedAmenities || {},
+			images: imagePaths,
+			owner: userId
+		});
+
+		await newHouse.save();
+		res.status(201).json({ message: 'Property added successfully', house: newHouse });
 	} catch (err) {
-		res.status(500).json({ error: err.message });
+		res.status(401).json({ message: err.message });
 	}
 });
 

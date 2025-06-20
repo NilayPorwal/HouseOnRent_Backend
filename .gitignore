@@ -76,3 +76,5 @@ yarn-error.log
 
 echo ".env" >> .gitignore
 
+uploads/
+

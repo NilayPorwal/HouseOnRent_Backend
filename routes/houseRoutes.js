@@ -1,5 +1,7 @@
 const express = require('express');
 const House = require('../models/House');
+const State = require('../models/State');
+const City = require('../models/City');
 const multer = require('multer');
 const getUserIdFromToken = require('../utils/getUserIdFromToken');
 const router = express.Router();
@@ -22,8 +24,33 @@ router.get('/', async (req, res) => {
 		if (!userId) {
 			return res.status(401).json({ message: 'Invalid or missing token' });
 		}
-		const houses = await House.find().populate('owner', 'name email');
-		res.status(201).json(houses);
+		const properties = await House.find().populate('owner', 'name email').sort({ createdAt: -1 }).lean();
+
+		if (!properties.length) {
+			return res.status(404).json({ message: 'No properties found' });
+		}
+
+		const stateMap = await State.find({}, '_id name').then(states => {
+			return states.reduce((acc, state) => {
+				acc[state._id] = state.name;
+				return acc;
+			}, {});
+		});
+
+		const cityMap = await City.find({}, '_id name').then(cities => {
+			return cities.reduce((acc, city) => {
+				acc[city._id] = city.name;
+				return acc;
+			}, {});
+		});
+
+		const enriched = properties.map(p => ({
+			...p,
+			state_name: stateMap[p.state_id] || null,
+			city_name: cityMap[p.city_id] || null
+		}));
+		console.log(enriched);
+		res.status(201).json(enriched);
 	} catch (err) {
 		res.status(401).json({ error: err.message });
 	}
@@ -36,11 +63,11 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		if (!userId) {
 			return res.status(401).json({ message: 'Invalid or missing token' });
 		}
-		const { title, description, price, location, amenities } = req.body;
+		const { title, description, price, address, amenities, city, state } = req.body;
 
 		const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
 
-		if (!title || !price || !location || imagePaths.length === 0) {
+		if (!title || !price || !address || imagePaths.length === 0) {
 			return res.status(400).json({ message: 'Missing required fields' });
 		}
 
@@ -49,7 +76,9 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			title,
 			description,
 			price,
-			location,
+			address,
+			state_id: state,
+			city_id: city,
 			amenities: parsedAmenities || {},
 			images: imagePaths,
 			owner: userId

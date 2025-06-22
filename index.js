@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const houseRoutes = require('./routes/houseRoutes');
 const userRoutes = require('./routes/userRoutes');
+const locationRoutes = require('./routes/locationRoutes');
 const path = require('path');
 const fs = require('fs');
 
@@ -40,6 +41,7 @@ mongoose
 
 app.use('/api/houses', houseRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/location', locationRoutes);
 
 const PORT = process.env.PORT || 3000;
 

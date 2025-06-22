@@ -49,8 +49,7 @@ router.get('/', async (req, res) => {
 			state_name: stateMap[p.state_id] || null,
 			city_name: cityMap[p.city_id] || null
 		}));
-		console.log(enriched);
-		res.status(201).json(enriched);
+		res.status(200).json(enriched);
 	} catch (err) {
 		res.status(401).json({ error: err.message });
 	}
@@ -85,7 +84,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		});
 
 		await newHouse.save();
-		res.status(201).json({ message: 'Property added successfully', house: newHouse });
+		res.status(200).json({ message: 'Property added successfully', house: newHouse });
 	} catch (err) {
 		res.status(401).json({ message: err.message });
 	}
@@ -110,6 +109,56 @@ router.delete('/:id', async (req, res) => {
 		res.json({ message: 'House deleted successfully' });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
+	}
+});
+
+router.post('/search', async (req, res) => {
+	try {
+		const userId = await getUserIdFromToken(req.headers?.authorization);
+		if (!userId) {
+			return res.status(401).json({ message: 'Invalid or missing token' });
+		}
+		const { location } = req.body;
+		if (!location) {
+			return res.status(400).json({ message: 'Location query parameter is required' });
+		}
+
+		const states = await State.find({ name: { $regex: location, $options: 'i' } }, '_id name');
+		const cities = await City.find({ name: { $regex: location, $options: 'i' } }, '_id name');
+
+		const stateIds = states.map(s => s._id);
+		const cityIds = cities.map(c => c._id);
+
+		const matchedProperties = await House.find({
+			$or: [
+				{ state_id: { $in: stateIds } },
+				{ city_id: { $in: cityIds } },
+				{ address: { $regex: location, $options: 'i' } }
+			]
+		})
+			.populate('owner', 'name email')
+			.sort({ createdAt: -1 })
+			.lean();
+
+		const stateMap = states.reduce((acc, state) => {
+			acc[state._id] = state.name;
+			return acc;
+		}, {});
+
+		const cityMap = cities.reduce((acc, city) => {
+			acc[city._id] = city.name;
+			return acc;
+		}, {});
+
+		const enriched = matchedProperties.map(p => ({
+			...p,
+			state_name: stateMap[p.state_id] || null,
+			city_name: cityMap[p.city_id] || null
+		}));
+
+		res.status(200).json(enriched);
+	} catch (err) {
+		res.status(400).json({ message: 'Failed to search properties' });
 	}
 });
 

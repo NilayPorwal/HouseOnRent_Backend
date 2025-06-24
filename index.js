@@ -1,9 +1,8 @@
-// house-rent-backend/app.js
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const houseRoutes = require('./routes/houseRoutes');
+const propertyRoutes = require('./routes/propertyRoutes');
 const userRoutes = require('./routes/userRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 const path = require('path');
@@ -39,7 +38,7 @@ mongoose
 	.then(() => console.log('MongoDB connected'))
 	.catch(err => console.error(err));
 
-app.use('/api/houses', houseRoutes);
+app.use('/api/properties', propertyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/location', locationRoutes);
 

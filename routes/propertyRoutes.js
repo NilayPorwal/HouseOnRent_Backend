@@ -1,5 +1,5 @@
 const express = require('express');
-const House = require('../models/House');
+const Property = require('../models/Property');
 const State = require('../models/State');
 const City = require('../models/City');
 const multer = require('multer');
@@ -17,14 +17,14 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Get all houses
+// Get all properties
 router.get('/', async (req, res) => {
 	try {
 		const userId = await getUserIdFromToken(req.headers.authorization);
 		if (!userId) {
 			return res.status(401).json({ message: 'Invalid or missing token' });
 		}
-		const properties = await House.find().populate('owner', 'name email').sort({ createdAt: -1 }).lean();
+		const properties = await Property.find().populate('owner', 'name email').sort({ createdAt: -1 }).lean();
 
 		if (!properties.length) {
 			return res.status(404).json({ message: 'No properties found' });
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 	}
 });
 
-// Add new house
+// Add new properties
 router.post('/add', upload.array('images', 5), async (req, res) => {
 	try {
 		const userId = await getUserIdFromToken(req.headers.authorization);
@@ -71,7 +71,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		}
 
 		const parsedAmenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
-		const newHouse = new House({
+		const newProperty = new Property({
 			title,
 			description,
 			price,
@@ -83,30 +83,30 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			owner: userId
 		});
 
-		await newHouse.save();
-		res.status(200).json({ message: 'Property added successfully', house: newHouse });
+		await newProperty.save();
+		res.status(200).json({ message: 'Property added successfully', property: newProperty });
 	} catch (err) {
 		res.status(401).json({ message: err.message });
 	}
 });
 
-// Get single house by ID
+// Get single property by ID
 router.get('/:id', async (req, res) => {
 	try {
-		const house = await House.findById(req.params.id).populate('owner', 'name email');
-		if (!house) return res.status(404).json({ message: 'House not found' });
-		res.json(house);
+		const property = await Property.findById(req.params.id).populate('owner', 'name email');
+		if (!property) return res.status(404).json({ message: 'Property not found' });
+		res.json(property);
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
 });
 
-// Delete house
+// Delete Property
 router.delete('/:id', async (req, res) => {
 	try {
-		const deleted = await House.findByIdAndDelete(req.params.id);
-		if (!deleted) return res.status(404).json({ message: 'House not found' });
-		res.json({ message: 'House deleted successfully' });
+		const deleted = await Property.findByIdAndDelete(req.params.id);
+		if (!deleted) return res.status(404).json({ message: 'Property not found' });
+		res.json({ message: 'Property deleted successfully' });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
@@ -129,7 +129,7 @@ router.post('/search', async (req, res) => {
 		const stateIds = states.map(s => s._id);
 		const cityIds = cities.map(c => c._id);
 
-		const matchedProperties = await House.find({
+		const matchedProperties = await Property.find({
 			$or: [
 				{ state_id: { $in: stateIds } },
 				{ city_id: { $in: cityIds } },

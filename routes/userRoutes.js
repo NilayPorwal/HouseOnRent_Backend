@@ -157,9 +157,42 @@ router.get('/my-properties', async (req, res) => {
 			return res.status(401).json({ message: 'Invalid or missing token' });
 		}
 
-		const properties = await Property.find({ owner: userId }).sort({ createdAt: -1 });
+		const properties = await Property.find({ owner: userId })
+			.populate('owner', 'name email phone')
+			.sort({ createdAt: -1 });
 
-		res.status(200).json(properties);
+		// Fetch state and city maps for enrichment
+		const State = require('../models/State');
+		const City = require('../models/City');
+
+		const stateMap = await State.find({}, '_id name').then(states => {
+			return states.reduce((acc, state) => {
+				acc[state._id] = state.name;
+				return acc;
+			}, {});
+		});
+
+		const cityMap = await City.find({}, '_id name').then(cities => {
+			return cities.reduce((acc, city) => {
+				acc[city._id] = city.name;
+				return acc;
+			}, {});
+		});
+
+		// Fetch user's favorites
+		const Favourite = require('../models/Favourite');
+		const favourites = await Favourite.find({ user: userId }, 'property');
+		const favSet = new Set(favourites.map(f => f.property.toString()));
+
+		// Enrich properties with state_name, city_name, and isFavourite
+		const enrichedProperties = properties.map(prop => ({
+			...prop.toObject(),
+			state_name: stateMap[prop.state_id] || null,
+			city_name: cityMap[prop.city_id] || null,
+			isFavourite: favSet.has(prop._id.toString())
+		}));
+
+		res.status(200).json(enrichedProperties);
 	} catch (err) {
 		res.status(500).json({ message: 'Server error', error: err.message });
 	}

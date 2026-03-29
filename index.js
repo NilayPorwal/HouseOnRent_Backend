@@ -5,6 +5,8 @@ const cors = require('cors');
 const propertyRoutes = require('./routes/propertyRoutes');
 const userRoutes = require('./routes/userRoutes');
 const locationRoutes = require('./routes/locationRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
 const path = require('path');
 const fs = require('fs');
 
@@ -32,16 +34,36 @@ if (!fs.existsSync(uploadDir)) {
 
 mongoose
 	.connect(process.env.MONGO_URI, {
-		useNewUrlParser: true,
-		useUnifiedTopology: true
+		retryWrites: true,
+		w: 'majority'
 	})
 	.then(() => console.log('MongoDB connected'))
-	.catch(err => console.error(err));
+	.catch(err => console.error('MongoDB connection error:', err));
 
+// Routes
 app.use('/api/properties', propertyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/favorites', favoriteRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+	res.status(200).json({ message: 'Server is running' });
+});
+
+// Error handler middleware
+app.use((err, req, res, next) => {
+	console.error('Error:', err);
+	const status = err.status || 500;
+	const message = err.message || 'Internal Server Error';
+	res.status(status).json({ message, error: message });
+});
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+	console.log(`\n🚀 Server running on port ${PORT}`);
+	console.log(`Environment: ${env}`);
+	console.log(`Base URL: http://localhost:${PORT}\n`);
+});

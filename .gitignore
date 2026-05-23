@@ -35,6 +35,8 @@ local.properties
 !debug.keystore
 .kotlin/
 
+package-lock.json
+
 # node.js
 #
 node_modules/

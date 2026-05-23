@@ -65,6 +65,11 @@ const propertySchema = new mongoose.Schema(
 			type: Boolean,
 			default: true
 		},
+		propertyCode: {
+			type: String,
+			trim: true,
+			default: null
+		},
 		rating: {
 			type: Number,
 			min: 0,

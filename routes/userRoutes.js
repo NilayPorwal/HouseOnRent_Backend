@@ -62,6 +62,63 @@ router.post('/register', async (req, res) => {
 	}
 });
 
+// Google Sign-In / Registration
+router.post('/google', async (req, res) => {
+	try {
+		const { name, email, photo } = req.body;
+
+		if (!email) {
+			return res.status(400).json({
+				message: 'Email is required for Google sign-in'
+			});
+		}
+
+		let user = await User.findOne({ email });
+		if (user) {
+			const token = generateToken(user._id);
+			return res.status(200).json({
+				message: 'Login successful',
+				token,
+				user: {
+					id: user._id,
+					name: user.name,
+					email: user.email,
+					phone: user.phone,
+					profilePicture: user.profilePicture,
+					role: user.role
+				}
+			});
+		}
+
+		const newUser = new User({
+			name: name || 'Google User',
+			email,
+			password: null,
+			phone: null,
+			profilePicture: photo || null,
+			isVerified: true
+		});
+
+		await newUser.save();
+
+		const token = generateToken(newUser._id);
+		res.status(201).json({
+			message: 'User registered via Google successfully',
+			token,
+			user: {
+				id: newUser._id,
+				name: newUser.name,
+				email: newUser.email,
+				phone: newUser.phone,
+				profilePicture: newUser.profilePicture,
+				role: newUser.role
+			}
+		});
+	} catch (err) {
+		res.status(500).json({ message: 'Server error', error: err.message });
+	}
+});
+
 // Login
 router.post('/login', async (req, res) => {
 	try {

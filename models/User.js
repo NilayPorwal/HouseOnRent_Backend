@@ -16,13 +16,14 @@ const userSchema = new mongoose.Schema(
 		},
 		phone: {
 			type: String,
-			required: true,
+			required: false,
 			unique: true,
+			sparse: true,
 			trim: true
 		},
 		password: {
 			type: String,
-			required: true,
+			required: false,
 			minlength: 6
 		},
 		profilePicture: {

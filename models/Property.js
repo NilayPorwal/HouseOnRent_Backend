@@ -24,6 +24,12 @@ const propertySchema = new mongoose.Schema(
 		state_id: String,
 		city_id: String,
 		pincode: String,
+		mobileNumber: {
+			type: String,
+			required: true,
+			trim: true,
+			match: /^\d{10}$/
+		},
 		latitude: Number,
 		longitude: Number,
 		images: [String],

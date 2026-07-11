@@ -147,6 +147,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			propertyType,
 			area,
 			pincode,
+			mobileNumber,
 			latitude,
 			longitude
 		} = req.body;
@@ -154,6 +155,10 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		// Validation
 		if (!title || !price || !address) {
 			return res.status(400).json({ message: 'title, price, and address are required' });
+		}
+
+		if (!mobileNumber || !/^\d{10}$/.test(mobileNumber.trim())) {
+			return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number' });
 		}
 
 		if (!req.files || req.files.length === 0) {
@@ -212,6 +217,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			city_id: cityDoc ? cityDoc._id : null,
 			propertyCode,
 			pincode: pincode || null,
+			mobileNumber: mobileNumber.trim(),
 			latitude: latitude ? parseFloat(latitude) : null,
 			longitude: longitude ? parseFloat(longitude) : null,
 			bedrooms: parseInt(bedrooms) || 1,
@@ -301,17 +307,27 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 			bathrooms,
 			propertyType,
 			area,
-			isAvailable
+			isAvailable,
+			pincode,
+			mobileNumber,
+			removedImages
 		} = req.body;
 
-		if (title) property.title = title.trim();
-		if (description) property.description = description;
-		if (price) property.price = parseInt(price);
-		if (address) property.address = address.trim();
-		if (bedrooms) property.bedrooms = parseInt(bedrooms);
-		if (bathrooms) property.bathrooms = parseInt(bathrooms);
-		if (propertyType) property.propertyType = propertyType;
-		if (area) property.area = parseInt(area);
+		if (title !== undefined) property.title = title.trim();
+		if (description !== undefined) property.description = description || '';
+		if (price !== undefined) property.price = parseInt(price);
+		if (address !== undefined) property.address = address.trim();
+		if (bedrooms !== undefined) property.bedrooms = parseInt(bedrooms);
+		if (bathrooms !== undefined) property.bathrooms = parseInt(bathrooms);
+		if (propertyType !== undefined) property.propertyType = propertyType;
+		if (area !== undefined) property.area = parseInt(area);
+		if (pincode !== undefined) property.pincode = pincode || null;
+		if (mobileNumber !== undefined) {
+			if (!/^\d{10}$/.test(mobileNumber.trim())) {
+				return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number' });
+			}
+			property.mobileNumber = mobileNumber.trim();
+		}
 		let cityDoc = null;
 		let stateDoc = null;
 		if (city) {
@@ -352,10 +368,22 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 		if (amenities) property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
 		if (isAvailable !== undefined) property.isAvailable = isAvailable;
 
-		if (req.files && req.files.length > 0) {
-			const newImages = req.files.map(file => `/uploads/${file.filename}`);
-			property.images = newImages;
+		let removedImageList = [];
+		if (removedImages) {
+			try {
+				removedImageList = typeof removedImages === 'string' ? JSON.parse(removedImages) : removedImages;
+			} catch (err) {
+				removedImageList = [];
+			}
 		}
+
+		const normalizedRemovedImages = (Array.isArray(removedImageList) ? removedImageList : [])
+			.map(img => String(img || '').trim())
+			.filter(Boolean);
+		const existingImages = Array.isArray(property.images) ? property.images : [];
+		const remainingImages = existingImages.filter(img => !normalizedRemovedImages.includes(String(img)));
+		const newImages = req.files && req.files.length > 0 ? req.files.map(file => `/uploads/${file.filename}`) : [];
+		property.images = [...remainingImages, ...newImages];
 
 		await property.save();
 

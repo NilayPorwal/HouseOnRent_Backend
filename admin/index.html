@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>RentalTown Admin</title>
+		<link rel="stylesheet" href="/admin/dashboard.css" />
+	</head>
+	<body>
+		<div id="loginView" class="login-shell">
+			<form id="loginForm" class="login-card">
+				<div class="brand-mark">RT</div>
+				<h1>Welcome back</h1>
+				<p>Sign in to manage RentalTown listings.</p>
+				<label>Email<input id="email" type="email" autocomplete="username" required /></label>
+				<label>Password<input id="password" type="password" autocomplete="current-password" required /></label>
+				<div id="loginError" class="error"></div>
+				<button class="primary-button" type="submit">Sign in</button>
+			</form>
+		</div>
+
+		<div id="dashboardView" class="dashboard hidden">
+			<aside class="sidebar">
+				<div class="brand">
+					<div class="brand-mark small">RT</div>
+					<span>RentalTown</span>
+				</div>
+				<nav>
+					<button class="nav-item active" data-view="overview"><span>⌂</span>Overview</button>
+					<button class="nav-item" data-view="pending"><span>◷</span>Pending <b id="pendingNav">0</b></button>
+					<button class="nav-item" data-view="approved"><span>✓</span>Approved</button>
+					<button class="nav-item" data-view="rejected"><span>×</span>Rejected</button>
+					<button class="nav-item" data-view="users"><span>♙</span>Users</button>
+				</nav>
+				<button id="logoutButton" class="logout">↪ Logout</button>
+			</aside>
+
+			<main>
+				<header class="topbar">
+					<div>
+						<p class="eyebrow">Admin dashboard</p>
+						<h1 id="pageTitle">Overview</h1>
+					</div>
+					<div class="admin-chip">
+						<div id="adminAvatar">A</div>
+						<span id="adminName">Admin</span>
+					</div>
+				</header>
+
+				<section class="content">
+					<div class="stats-grid">
+						<article class="stat-card">
+							<div class="stat-icon orange">⌂</div>
+							<div>
+								<p>Total properties</p>
+								<h2 id="totalProperties">0</h2>
+							</div>
+						</article>
+						<article class="stat-card">
+							<div class="stat-icon yellow">◷</div>
+							<div>
+								<p>Pending review</p>
+								<h2 id="pendingProperties">0</h2>
+							</div>
+						</article>
+						<article class="stat-card">
+							<div class="stat-icon green">✓</div>
+							<div>
+								<p>Approved</p>
+								<h2 id="approvedProperties">0</h2>
+							</div>
+						</article>
+						<article class="stat-card">
+							<div class="stat-icon blue">♙</div>
+							<div>
+								<p>Total users</p>
+								<h2 id="totalUsers">0</h2>
+							</div>
+						</article>
+					</div>
+
+					<section class="panel">
+						<div class="panel-header">
+							<div>
+								<h2 id="tableTitle">Recent properties</h2>
+								<p id="tableSubtitle">Latest submitted listings</p>
+							</div>
+							<div class="filters">
+								<input id="searchInput" type="search" placeholder="Search properties" /><button
+									id="refreshButton"
+									class="icon-button"
+									title="Refresh"
+								>
+									↻
+								</button>
+							</div>
+						</div>
+						<div class="table-wrap">
+							<table>
+								<thead id="tableHead">
+									<tr>
+										<th>Property</th>
+										<th>Owner</th>
+										<th>Price</th>
+										<th>Address</th>
+										<th>Status</th>
+										<th>Submitted</th>
+										<th>Action</th>
+									</tr>
+								</thead>
+								<tbody id="propertiesBody">
+									<tr>
+										<td colspan="7" class="empty">Loading properties…</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div id="pagination" class="pagination"></div>
+					</section>
+				</section>
+			</main>
+		</div>
+
+		<div
+			id="confirmModal"
+			class="modal-overlay hidden"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="confirmTitle"
+			aria-hidden="true"
+		>
+			<div class="confirm-modal">
+				<div id="confirmIcon" class="confirm-icon">?</div>
+				<h2 id="confirmTitle">Confirm action</h2>
+				<p id="confirmMessage"></p>
+				<label id="reasonField" class="reason-field hidden">
+					Rejection reason <span>(optional)</span>
+					<textarea id="confirmReason" rows="3" placeholder="Enter a reason..."></textarea>
+				</label>
+				<div class="confirm-actions">
+					<button id="confirmCancel" type="button" class="modal-button cancel">Cancel</button>
+					<button id="confirmSubmit" type="button" class="modal-button confirm">Confirm</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="toast" class="toast"></div>
+		<script src="/admin/dashboard.js"></script>
+	</body>
+</html>

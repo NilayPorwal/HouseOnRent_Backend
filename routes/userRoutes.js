@@ -94,8 +94,7 @@ router.post('/google', async (req, res) => {
 			name: name || 'Google User',
 			email,
 			password: null,
-			phone: null,
-			profilePicture: photo || null,
+			profilePicture: photo,
 			isVerified: true
 		});
 
@@ -135,6 +134,10 @@ router.post('/login', async (req, res) => {
 			return res.status(404).json({ message: 'User not found' });
 		}
 
+		if (!user.password) {
+			return res.status(400).json({ message: 'This account cannot use password login' });
+		}
+
 		const isMatch = await bcrypt.compare(password, user.password);
 		if (!isMatch) {
 			return res.status(401).json({ message: 'Invalid credentials' });
@@ -143,6 +146,77 @@ router.post('/login', async (req, res) => {
 		const token = generateToken(user._id);
 		res.status(200).json({
 			message: 'Login successful',
+			token,
+			user: {
+				id: user._id,
+				name: user.name,
+				email: user.email,
+				phone: user.phone,
+				role: user.role
+			}
+		});
+	} catch (err) {
+		res.status(500).json({ message: 'Server error', error: err.message });
+	}
+});
+
+// First-time admin bootstrap login
+router.post('/admin-login', async (req, res) => {
+	try {
+		const email = String(req.body.email || '')
+			.trim()
+			.toLowerCase();
+		const password = String(req.body.password || '');
+
+		if (!email || !password) {
+			return res.status(400).json({ message: 'Please provide email and password' });
+		}
+
+		const adminCount = await User.countDocuments({ role: 'admin' });
+		let user = await User.findOne({ email });
+
+		if (adminCount === 0) {
+			if (user) {
+				if (!user.password) {
+					return res.status(400).json({ message: 'This account cannot use password login' });
+				}
+				const isMatch = await bcrypt.compare(password, user.password);
+				if (!isMatch) {
+					return res.status(401).json({ message: 'Invalid credentials' });
+				}
+				user.role = 'admin';
+				await user.save();
+			} else {
+				if (password.length < 6) {
+					return res.status(400).json({ message: 'Password must be at least 6 characters' });
+				}
+				const hashedPassword = await bcrypt.hash(password, 10);
+				const name =
+					email
+						.split('@')[0]
+						.replace(/[._-]+/g, ' ')
+						.replace(/\b\w/g, letter => letter.toUpperCase()) || 'Admin';
+				user = await User.create({ name, email, password: hashedPassword, role: 'admin', isVerified: true });
+			}
+		} else {
+			if (!user) {
+				return res.status(404).json({ message: 'Admin account not found' });
+			}
+			if (user.role !== 'admin') {
+				return res.status(403).json({ message: 'This account does not have admin access' });
+			}
+			if (!user.password) {
+				return res.status(400).json({ message: 'This account cannot use password login' });
+			}
+			const isMatch = await bcrypt.compare(password, user.password);
+			if (!isMatch) {
+				return res.status(401).json({ message: 'Invalid credentials' });
+			}
+		}
+
+		const token = generateToken(user._id);
+		res.status(200).json({
+			message: 'Admin login successful',
 			token,
 			user: {
 				id: user._id,

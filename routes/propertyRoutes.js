@@ -66,6 +66,7 @@ router.get('/', async (req, res) => {
 		}
 
 		filters.isAvailable = true;
+		filters.status = 'approved';
 
 		// Get total count
 		const total = await Property.countDocuments(filters);
@@ -226,7 +227,12 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			area: area ? parseInt(area) : null,
 			amenities: parsedAmenities || {},
 			images: imagePaths,
-			owner: userId
+			owner: userId,
+			status: 'pending',
+			isAvailable: false,
+			rejectionReason: '',
+			reviewedBy: null,
+			reviewedAt: null
 		});
 
 		await newProperty.save();
@@ -244,7 +250,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		};
 
 		res.status(201).json({
-			message: 'Property added successfully',
+			message: 'Property submitted successfully and is pending admin approval',
 			property: enrichedProperty
 		});
 	} catch (err) {
@@ -258,7 +264,7 @@ router.get('/:id', async (req, res) => {
 	try {
 		const property = await Property.findById(req.params.id).populate('owner', 'name email phone');
 
-		if (!property) {
+		if (!property || property.status !== 'approved' || !property.isAvailable) {
 			return res.status(404).json({ message: 'Property not found' });
 		}
 
@@ -368,6 +374,13 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 		if (amenities) property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
 		if (isAvailable !== undefined) property.isAvailable = isAvailable;
 
+		// Owners cannot publish or unpublish listings directly. Any edit re-enters moderation.
+		property.status = 'pending';
+		property.isAvailable = false;
+		property.rejectionReason = '';
+		property.reviewedBy = null;
+		property.reviewedAt = null;
+
 		let removedImageList = [];
 		if (removedImages) {
 			try {
@@ -453,7 +466,8 @@ router.post('/search', async (req, res) => {
 				{ address: { $regex: location, $options: 'i' } },
 				{ propertyCode: { $regex: location, $options: 'i' } }
 			],
-			isAvailable: true
+			isAvailable: true,
+			status: 'approved'
 		})
 			.populate('owner', 'name email')
 			.sort({ createdAt: -1 })
@@ -510,7 +524,7 @@ router.get('/featured', async (req, res) => {
 			return res.status(401).json({ message: 'Invalid or missing token' });
 		}
 
-		const featured = await Property.find({ isAvailable: true })
+		const featured = await Property.find({ isAvailable: true, status: 'approved' })
 			.populate('owner', 'name email phone')
 			.sort({ rating: -1, reviewsCount: -1 })
 			.limit(5)
@@ -551,7 +565,7 @@ router.get('/code/:code', async (req, res) => {
 	try {
 		const property = await Property.findOne({ propertyCode: req.params.code }).populate('owner', 'name email phone');
 
-		if (!property) {
+		if (!property || property.status !== 'approved' || !property.isAvailable) {
 			return res.status(404).json({ message: 'Property not found' });
 		}
 

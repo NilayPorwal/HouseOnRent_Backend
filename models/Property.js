@@ -69,7 +69,26 @@ const propertySchema = new mongoose.Schema(
 		},
 		isAvailable: {
 			type: Boolean,
-			default: true
+			default: false
+		},
+		status: {
+			type: String,
+			enum: ['pending', 'approved', 'rejected'],
+			default: 'pending'
+		},
+		rejectionReason: {
+			type: String,
+			trim: true,
+			default: ''
+		},
+		reviewedBy: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'User',
+			default: null
+		},
+		reviewedAt: {
+			type: Date,
+			default: null
 		},
 		propertyCode: {
 			type: String,
@@ -105,5 +124,7 @@ propertySchema.index({ city_id: 1 });
 propertySchema.index({ price: 1 });
 propertySchema.index({ propertyType: 1 });
 propertySchema.index({ isAvailable: 1 });
+propertySchema.index({ status: 1 });
+propertySchema.index({ reviewedBy: 1 });
 
 module.exports = mongoose.model('Property', propertySchema);

@@ -7,6 +7,9 @@ const userRoutes = require('./routes/userRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const Property = require('./models/Property');
+const User = require('./models/User');
 const path = require('path');
 const fs = require('fs');
 
@@ -37,7 +40,18 @@ mongoose
 		retryWrites: true,
 		w: 'majority'
 	})
-	.then(() => console.log('MongoDB connected'))
+	.then(async () => {
+		console.log('MongoDB connected');
+		await Property.updateMany({ status: { $exists: false } }, [
+			{ $set: { status: { $cond: ['$isAvailable', 'approved', 'pending'] } } }
+		]);
+		console.log('Property approval migration completed');
+
+		// Remove legacy null phone values
+		await User.updateMany({ $or: [{ phone: null }, { phone: '' }] }, { $unset: { phone: '' } });
+		await User.syncIndexes();
+		console.log('User phone index migration completed');
+	})
 	.catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
@@ -46,6 +60,13 @@ app.use('/api/users', userRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/admin', adminRoutes);
+
+// Serve the admin dashboard
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
+app.get('/admin', (req, res) => {
+	res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

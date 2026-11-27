@@ -87,4 +87,31 @@ app.listen(PORT, () => {
 	console.log(`\n🚀 Server running on port ${PORT}`);
 	console.log(`Environment: ${env}`);
 	console.log(`Base URL: http://localhost:${PORT}\n`);
+
+	// Ping the deployed server every 12 minutes to prevent free-tier idle sleep.
+	if (env === 'production') {
+		const keepAliveUrl =
+			process.env.SERVER_URL || process.env.RENDER_EXTERNAL_URL || 'https://rentnest-htu6.onrender.com';
+		const healthUrl = `${keepAliveUrl.replace(/\/$/, '')}/api/health`;
+		const intervalMs = 13 * 60 * 1000;
+
+		const pingServer = async () => {
+			try {
+				const response = await fetch(healthUrl, {
+					headers: { 'User-Agent': 'HouseOnRent-KeepAlive/1.0' },
+					signal: AbortSignal.timeout(10000)
+				});
+
+				console.log(`[KeepAlive] ${new Date().toISOString()} - ${response.status} ${healthUrl}`);
+			} catch (error) {
+				console.error(`[KeepAlive] Ping failed: ${error.message}`);
+			}
+		};
+
+		// Start after 13 minutes. The health endpoint remains available for Render health checks in the meantime.
+		const keepAliveTimer = setInterval(pingServer, intervalMs);
+		keepAliveTimer.unref?.();
+
+		console.log(`[KeepAlive] Enabled: pinging ${healthUrl} every 12 minutes`);
+	}
 });

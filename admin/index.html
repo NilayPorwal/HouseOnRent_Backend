@@ -144,6 +144,36 @@
 			</div>
 		</div>
 
+		<div
+			id="photoPreviewModal"
+			class="modal-overlay photo-preview-overlay hidden"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="photoPreviewTitle"
+			aria-hidden="true"
+		>
+			<div class="photo-preview-modal">
+				<div class="photo-preview-header">
+					<div>
+						<p class="eyebrow">Property photos</p>
+						<h2 id="photoPreviewTitle">Photo preview</h2>
+					</div>
+					<button id="photoPreviewClose" class="photo-preview-close" type="button" aria-label="Close preview">×</button>
+				</div>
+				<div class="photo-preview-stage">
+					<button id="photoPreviewPrev" class="photo-preview-arrow prev" type="button" aria-label="Previous photo">
+						‹
+					</button>
+					<img id="photoPreviewImage" src="" alt="Property photo" />
+					<button id="photoPreviewNext" class="photo-preview-arrow next" type="button" aria-label="Next photo">
+						›
+					</button>
+				</div>
+				<div id="photoPreviewCounter" class="photo-preview-counter"></div>
+				<div id="photoPreviewDots" class="photo-preview-dots"></div>
+			</div>
+		</div>
+
 		<div id="toast" class="toast"></div>
 		<script src="/admin/dashboard.js"></script>
 	</body>

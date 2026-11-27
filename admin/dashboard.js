@@ -132,6 +132,92 @@ function statusBadge(status) {
 	return `<span class="badge ${status}">${status}</span>`;
 }
 
+let propertyPhotos = new Map();
+let previewPhotos = [];
+let previewIndex = 0;
+
+function getPropertyImageUrl(image) {
+	if (typeof image !== 'string') return '';
+	const value = image.trim();
+	if (!value) return '';
+	if (/^(https?:|data:|blob:)/i.test(value)) return value;
+	if (value.startsWith('//')) return value;
+	return value.startsWith('/') ? value : '/' + value.replace(/^\.\//, '');
+}
+
+function openPhotoPreview(propertyId) {
+	previewPhotos = propertyPhotos.get(String(propertyId)) || [];
+	previewIndex = 0;
+	if (!previewPhotos.length) return;
+
+	const modal = qs('#photoPreviewModal');
+	modal.classList.remove('hidden');
+	modal.setAttribute('aria-hidden', 'false');
+	updatePhotoPreview();
+	qs('#photoPreviewClose').focus();
+}
+
+function updatePhotoPreview() {
+	const image = qs('#photoPreviewImage');
+	const counter = qs('#photoPreviewCounter');
+	const dots = qs('#photoPreviewDots');
+	const prev = qs('#photoPreviewPrev');
+	const next = qs('#photoPreviewNext');
+
+	if (!previewPhotos.length) return;
+	previewIndex = (previewIndex + previewPhotos.length) % previewPhotos.length;
+	image.src = previewPhotos[previewIndex];
+	image.alt = `Property photo ${previewIndex + 1} of ${previewPhotos.length}`;
+	counter.textContent = `${previewIndex + 1} / ${previewPhotos.length}`;
+	dots.innerHTML = previewPhotos
+		.map(
+			(_, index) =>
+				`<button type="button" class="photo-preview-dot ${index === previewIndex ? 'active' : ''}" data-photo-index="${index}" aria-label="View photo ${index + 1}"></button>`
+		)
+		.join('');
+	prev.hidden = previewPhotos.length < 2;
+	next.hidden = previewPhotos.length < 2;
+}
+
+function closePhotoPreview() {
+	const modal = qs('#photoPreviewModal');
+	modal.classList.add('hidden');
+	modal.setAttribute('aria-hidden', 'true');
+	previewPhotos = [];
+	previewIndex = 0;
+}
+
+qs('#photoPreviewClose').addEventListener('click', closePhotoPreview);
+qs('#photoPreviewPrev').addEventListener('click', () => {
+	previewIndex -= 1;
+	updatePhotoPreview();
+});
+qs('#photoPreviewNext').addEventListener('click', () => {
+	previewIndex += 1;
+	updatePhotoPreview();
+});
+qs('#photoPreviewDots').addEventListener('click', event => {
+	const dot = event.target.closest('[data-photo-index]');
+	if (!dot) return;
+	previewIndex = Number(dot.dataset.photoIndex);
+	updatePhotoPreview();
+});
+qs('#photoPreviewModal').addEventListener('click', event => {
+	if (event.target === qs('#photoPreviewModal')) closePhotoPreview();
+});
+document.addEventListener('keydown', event => {
+	if (qs('#photoPreviewModal').classList.contains('hidden')) return;
+	if (event.key === 'Escape') closePhotoPreview();
+	if (event.key === 'ArrowLeft') {
+		previewIndex -= 1;
+		updatePhotoPreview();
+	}
+	if (event.key === 'ArrowRight') {
+		previewIndex += 1;
+		updatePhotoPreview();
+	}
+});
+
 async function loadProperties() {
 	const body = qs('#propertiesBody');
 	body.innerHTML = '<tr><td colspan="7" class="empty">Loading properties…</td></tr>';
@@ -153,10 +239,12 @@ async function loadProperties() {
 
 		body.innerHTML = data.properties
 			.map(property => {
-				const image = property.images && property.images[0] ? property.images[0] : '';
+				const images = Array.isArray(property.images) ? property.images.map(getPropertyImageUrl).filter(Boolean) : [];
+				propertyPhotos.set(String(property._id), images);
+				const image = images[0] || '';
 				const thumb = image
-					? `<img class="property-thumb" src="${image}" alt="">`
-					: '<div class="property-thumb"></div>';
+					? `<button class="property-thumb-button" type="button" data-preview-property="${property._id}" aria-label="Preview photos for ${escapeHtml(property.title)}"><img class="property-thumb" src="${escapeHtml(image)}" alt="${escapeHtml(property.title)}"><span class="property-photo-count">${images.length}</span></button>`
+					: '<div class="property-thumb property-thumb-empty"></div>';
 				const action =
 					property.status === 'pending'
 						? `<div class="actions"><button class="action-button approve" data-action="approved" data-id="${property._id}">Approve</button><button class="action-button reject" data-action="rejected" data-id="${property._id}">Reject</button></div>`
@@ -186,6 +274,12 @@ function escapeHtml(value) {
 }
 
 qs('#propertiesBody').addEventListener('click', async event => {
+	const previewButton = event.target.closest('[data-preview-property]');
+	if (previewButton) {
+		openPhotoPreview(previewButton.dataset.previewProperty);
+		return;
+	}
+
 	const button = event.target.closest('[data-action]');
 	if (!button) return;
 

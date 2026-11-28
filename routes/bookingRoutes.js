@@ -27,8 +27,8 @@ router.post('/create', async (req, res) => {
 			return res.status(404).json({ message: 'Property not found' });
 		}
 
-		if (!propertyObj.isAvailable) {
-			return res.status(400).json({ message: 'Property is not available' });
+		if (!propertyObj.isAvailable || propertyObj.status !== 'approved') {
+			return res.status(400).json({ message: 'Property is not available for booking' });
 		}
 
 		// Check for date conflicts

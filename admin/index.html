@@ -20,7 +20,8 @@
 		</div>
 
 		<div id="dashboardView" class="dashboard hidden">
-			<aside class="sidebar">
+			<button id="sidebarOverlay" class="sidebar-overlay hidden" type="button" aria-label="Close menu"></button>
+			<aside id="sidebar" class="sidebar" aria-label="Admin navigation">
 				<div class="brand">
 					<div class="brand-mark small">RT</div>
 					<span>RentalTown</span>
@@ -37,9 +38,21 @@
 
 			<main>
 				<header class="topbar">
-					<div>
-						<p class="eyebrow">Admin dashboard</p>
-						<h1 id="pageTitle">Overview</h1>
+					<div class="topbar-title">
+						<button
+							id="menuToggle"
+							class="menu-toggle"
+							type="button"
+							aria-label="Open menu"
+							aria-controls="sidebar"
+							aria-expanded="false"
+						>
+							☰
+						</button>
+						<div>
+							<p class="eyebrow">Admin dashboard</p>
+							<h1 id="pageTitle">Overview</h1>
+						</div>
 					</div>
 					<div class="admin-chip">
 						<div id="adminAvatar">A</div>

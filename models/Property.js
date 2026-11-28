@@ -37,6 +37,7 @@ const propertySchema = new mongoose.Schema(
 			parking: Boolean,
 			wifi: Boolean,
 			ac: Boolean,
+			balcony: Boolean,
 			furnished: Boolean,
 			gym: Boolean,
 			pool: Boolean,
@@ -69,7 +70,7 @@ const propertySchema = new mongoose.Schema(
 		},
 		isAvailable: {
 			type: Boolean,
-			default: false
+			default: true
 		},
 		status: {
 			type: String,

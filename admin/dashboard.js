@@ -13,6 +13,7 @@ const dashboardView = qs('#dashboardView');
 async function api(path, options = {}) {
 	const response = await fetch(API + path, {
 		...options,
+		cache: 'no-store',
 		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) }
 	});
 	const data = await response.json().catch(() => ({}));
@@ -111,7 +112,34 @@ qs('#logoutButton').addEventListener('click', () => {
 	localStorage.removeItem('adminUser');
 	token = null;
 	dashboardView.classList.add('hidden');
+	dashboardView.classList.remove('sidebar-open');
 	loginView.classList.remove('hidden');
+});
+
+const menuToggle = qs('#menuToggle');
+const sidebarOverlay = qs('#sidebarOverlay');
+
+function openSidebar() {
+	dashboardView.classList.add('sidebar-open');
+	sidebarOverlay.classList.remove('hidden');
+	menuToggle.setAttribute('aria-expanded', 'true');
+	menuToggle.setAttribute('aria-label', 'Close menu');
+}
+
+function closeSidebar() {
+	dashboardView.classList.remove('sidebar-open');
+	sidebarOverlay.classList.add('hidden');
+	menuToggle.setAttribute('aria-expanded', 'false');
+	menuToggle.setAttribute('aria-label', 'Open menu');
+}
+
+menuToggle.addEventListener('click', () => {
+	if (dashboardView.classList.contains('sidebar-open')) closeSidebar();
+	else openSidebar();
+});
+sidebarOverlay.addEventListener('click', closeSidebar);
+document.addEventListener('keydown', event => {
+	if (event.key === 'Escape' && dashboardView.classList.contains('sidebar-open')) closeSidebar();
 });
 
 async function loadStats() {
@@ -120,6 +148,7 @@ async function loadStats() {
 		qs('#totalProperties').textContent = data.stats.totalProperties;
 		qs('#pendingProperties').textContent = data.stats.pendingProperties;
 		qs('#approvedProperties').textContent = data.stats.approvedProperties;
+		qs('#totalUsers').textContent = data.stats.totalUsers;
 		qs('#pendingNav').textContent = data.stats.pendingProperties;
 	} catch (error) {
 		if (error.message.includes('session') || error.message.includes('authentication')) {
@@ -229,7 +258,6 @@ async function loadProperties() {
 		params.set('page', currentPage);
 		params.set('limit', PAGE_LIMIT);
 		const data = await api('/properties?' + params);
-		qs('#totalUsers').textContent = (await api('/stats')).stats.totalUsers;
 
 		if (!data.properties.length) {
 			body.innerHTML = '<tr><td colspan="7" class="empty">No properties found</td></tr>';
@@ -345,6 +373,7 @@ document.querySelectorAll('.nav-item').forEach(button =>
 			qs('#searchInput').placeholder = 'Search properties';
 		}
 		loadTable();
+		if (window.matchMedia('(max-width: 560px)').matches) closeSidebar();
 	})
 );
 

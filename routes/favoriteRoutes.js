@@ -98,7 +98,7 @@ router.post('/:propertyId', async (req, res) => {
 		const { propertyId } = req.params;
 
 		const property = await Property.findById(propertyId);
-		if (!property) {
+		if (!property || property.status !== 'approved' || !property.isAvailable) {
 			return res.status(404).json({ message: 'Property not found' });
 		}
 

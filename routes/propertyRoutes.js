@@ -7,6 +7,7 @@ const Favourite = require('../models/Favourite');
 const multer = require('multer');
 const getUserIdFromToken = require('../utils/getUserIdFromToken');
 const router = express.Router();
+const mongoose = require('mongoose');
 
 // Multer setup for image upload
 const storage = multer.diskStorage({
@@ -200,7 +201,14 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 		}
 
 		const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
-		const parsedAmenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+		let parsedAmenities = {};
+		if (amenities) {
+			try {
+				parsedAmenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+			} catch (parseErr) {
+				return res.status(400).json({ message: 'Invalid amenities data' });
+			}
+		}
 
 		let propertyCode = null;
 		if (stateDoc && cityDoc) {
@@ -229,7 +237,7 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			images: imagePaths,
 			owner: userId,
 			status: 'pending',
-			isAvailable: false,
+			isAvailable: true,
 			rejectionReason: '',
 			reviewedBy: null,
 			reviewedAt: null
@@ -262,7 +270,12 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 // Get single property by ID
 router.get('/:id', async (req, res) => {
 	try {
-		const property = await Property.findById(req.params.id).populate('owner', 'name email phone');
+		const propertyId = req.params.id;
+		if (!mongoose.isValidObjectId(propertyId)) {
+			return res.status(400).json({ message: 'Invalid property ID' });
+		}
+
+		const property = await Property.findById(propertyId).populate('owner', 'name email phone');
 
 		if (!property || property.status !== 'approved' || !property.isAvailable) {
 			return res.status(404).json({ message: 'Property not found' });
@@ -319,12 +332,56 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 			removedImages
 		} = req.body;
 
-		if (title !== undefined) property.title = title.trim();
+		// Availability-only updates are used by the owner to mark a listing booked or reopened.
+		// These must not reset the listing through the moderation workflow.
+		const submittedFields = Object.keys(req.body || {});
+		const isAvailabilityOnlyUpdate =
+			submittedFields.length === 1 && submittedFields[0] === 'isAvailable' && isAvailable !== undefined;
+
+		if (isAvailabilityOnlyUpdate) {
+			const availability =
+				typeof isAvailable === 'boolean' ? isAvailable : String(isAvailable).toLowerCase() === 'true';
+
+			property.isAvailable = availability;
+			await property.save();
+
+			const updatedProperty = await Property.findById(property._id).populate('owner', 'name email phone');
+			return res.status(200).json({
+				message: availability ? 'Property reopened for rent' : 'Property marked as booked',
+				property: updatedProperty
+			});
+		}
+
+		if (title !== undefined) {
+			if (!String(title).trim()) return res.status(400).json({ message: 'Title is required' });
+			property.title = String(title).trim();
+		}
 		if (description !== undefined) property.description = description || '';
-		if (price !== undefined) property.price = parseInt(price);
-		if (address !== undefined) property.address = address.trim();
-		if (bedrooms !== undefined) property.bedrooms = parseInt(bedrooms);
-		if (bathrooms !== undefined) property.bathrooms = parseInt(bathrooms);
+		if (price !== undefined) {
+			const parsedPrice = parseInt(price);
+			if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+				return res.status(400).json({ message: 'Please provide a valid price' });
+			}
+			property.price = parsedPrice;
+		}
+		if (address !== undefined) {
+			if (!String(address).trim()) return res.status(400).json({ message: 'Address is required' });
+			property.address = String(address).trim();
+		}
+		if (bedrooms !== undefined) {
+			const parsedBedrooms = parseInt(bedrooms);
+			if (Number.isNaN(parsedBedrooms) || parsedBedrooms < 1) {
+				return res.status(400).json({ message: 'Bedrooms must be at least 1' });
+			}
+			property.bedrooms = parsedBedrooms;
+		}
+		if (bathrooms !== undefined) {
+			const parsedBathrooms = parseInt(bathrooms);
+			if (Number.isNaN(parsedBathrooms) || parsedBathrooms < 1) {
+				return res.status(400).json({ message: 'Bathrooms must be at least 1' });
+			}
+			property.bathrooms = parsedBathrooms;
+		}
 		if (propertyType !== undefined) property.propertyType = propertyType;
 		if (area !== undefined) property.area = parseInt(area);
 		if (pincode !== undefined) property.pincode = pincode || null;
@@ -358,6 +415,16 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 			}
 			property.state_id = stateDoc._id;
 		}
+
+		// Ensure a changed city belongs to the selected/current state.
+		if (property.city_id && property.state_id) {
+			const currentState = stateDoc || (await State.findOne({ _id: property.state_id }));
+			const currentCity = cityDoc || (await City.findOne({ _id: property.city_id }));
+			if (currentState && currentCity && currentCity.state_id !== currentState._id) {
+				return res.status(400).json({ message: 'City does not belong to the selected state' });
+			}
+		}
+
 		if ((cityDoc || stateDoc) && property.city_id && property.state_id) {
 			const currentState = stateDoc || (await State.findOne({ _id: property.state_id }));
 			const currentCity = cityDoc || (await City.findOne({ _id: property.city_id }));
@@ -371,10 +438,15 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 				property.propertyCode = `${stateCodePart}${currentCity._id}-${serialInCity}`;
 			}
 		}
-		if (amenities) property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
-		if (isAvailable !== undefined) property.isAvailable = isAvailable;
+		if (amenities) {
+			try {
+				property.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+			} catch (parseErr) {
+				return res.status(400).json({ message: 'Invalid amenities data' });
+			}
+		}
 
-		// Owners cannot publish or unpublish listings directly. Any edit re-enters moderation.
+		// Full property edits re-enter moderation and cannot publish directly.
 		property.status = 'pending';
 		property.isAvailable = false;
 		property.rejectionReason = '';
@@ -396,7 +468,11 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 		const existingImages = Array.isArray(property.images) ? property.images : [];
 		const remainingImages = existingImages.filter(img => !normalizedRemovedImages.includes(String(img)));
 		const newImages = req.files && req.files.length > 0 ? req.files.map(file => `/uploads/${file.filename}`) : [];
-		property.images = [...remainingImages, ...newImages];
+		const finalImages = [...remainingImages, ...newImages];
+		if (finalImages.length === 0) {
+			return res.status(400).json({ message: 'At least one image is required' });
+		}
+		property.images = finalImages;
 
 		await property.save();
 
@@ -589,7 +665,7 @@ router.get('/product/:id', async (req, res) => {
 	try {
 		const property = await Property.findById(req.params.id);
 
-		if (!property) {
+		if (!property || property.status !== 'approved' || !property.isAvailable) {
 			return res.status(404).send('<h1>Property not found</h1>');
 		}
 

@@ -6,13 +6,14 @@ const User = require('../models/User');
 const Favourite = require('../models/Favourite');
 const multer = require('multer');
 const getUserIdFromToken = require('../utils/getUserIdFromToken');
+const { uploadDir } = require('../utils/uploadStorage');
 const router = express.Router();
 const mongoose = require('mongoose');
 
 // Multer setup for image upload
 const storage = multer.diskStorage({
 	destination: function (req, file, cb) {
-		cb(null, 'uploads/');
+		cb(null, uploadDir);
 	},
 	filename: function (req, file, cb) {
 		cb(null, Date.now() + '-' + file.originalname);

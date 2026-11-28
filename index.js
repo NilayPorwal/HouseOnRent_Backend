@@ -2,16 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const propertyRoutes = require('./routes/propertyRoutes');
-const userRoutes = require('./routes/userRoutes');
-const locationRoutes = require('./routes/locationRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const favoriteRoutes = require('./routes/favoriteRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const Property = require('./models/Property');
-const User = require('./models/User');
 const path = require('path');
-const fs = require('fs');
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -21,19 +12,36 @@ if (env === 'production') {
 	dotenv.config({ path: '.env.dev' });
 }
 
+const propertyRoutes = require('./routes/propertyRoutes');
+const userRoutes = require('./routes/userRoutes');
+const locationRoutes = require('./routes/locationRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const Property = require('./models/Property');
+const User = require('./models/User');
+const { uploadDir } = require('./utils/uploadStorage');
+
 const app = express();
 
 app.use(cors({ origin: '*' }));
 
 app.use(express.json());
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadDir));
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-	fs.mkdirSync(uploadDir);
-}
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+	res.status(200).json({ message: 'Server is running' });
+});
+
+// Error handler middleware
+app.use((err, req, res, next) => {
+	console.error('Error:', err);
+	const status = err.status || 500;
+	const message = err.message || 'Internal Server Error';
+	res.status(status).json({ message, error: message });
+});
 
 mongoose
 	.connect(process.env.MONGO_URI, {
@@ -66,19 +74,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.get('/admin', (req, res) => {
 	res.sendFile(path.join(__dirname, 'admin', 'index.html'));
-});
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-	res.status(200).json({ message: 'Server is running' });
-});
-
-// Error handler middleware
-app.use((err, req, res, next) => {
-	console.error('Error:', err);
-	const status = err.status || 500;
-	const message = err.message || 'Internal Server Error';
-	res.status(status).json({ message, error: message });
 });
 
 const PORT = process.env.PORT || 3000;

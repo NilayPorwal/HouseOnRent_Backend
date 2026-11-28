@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -20,7 +21,6 @@ const favoriteRoutes = require('./routes/favoriteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const Property = require('./models/Property');
 const User = require('./models/User');
-const { uploadDir } = require('./utils/uploadStorage');
 
 const app = express();
 
@@ -28,7 +28,13 @@ app.use(cors({ origin: '*' }));
 
 app.use(express.json());
 
-app.use('/uploads', express.static(uploadDir));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+	fs.mkdirSync(uploadDir);
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

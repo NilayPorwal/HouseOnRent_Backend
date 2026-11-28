@@ -6,20 +6,22 @@ const User = require('../models/User');
 const Favourite = require('../models/Favourite');
 const multer = require('multer');
 const getUserIdFromToken = require('../utils/getUserIdFromToken');
-const { uploadDir } = require('../utils/uploadStorage');
+const { uploadPropertyImage } = require('../utils/supabaseStorage');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// Multer setup for image upload
-const storage = multer.diskStorage({
-	destination: function (req, file, cb) {
-		cb(null, uploadDir);
-	},
-	filename: function (req, file, cb) {
-		cb(null, Date.now() + '-' + file.originalname);
+// Keep uploads in memory, then send each image directly to Supabase
+const storage = multer.memoryStorage();
+const upload = multer({
+	storage,
+	limits: { fileSize: 10 * 1024 * 1024 },
+	fileFilter: (req, file, cb) => {
+		if (!file.mimetype.startsWith('image/')) {
+			return cb(new Error('Only image files are allowed'));
+		}
+		cb(null, true);
 	}
 });
-const upload = multer({ storage: storage });
 
 // Get all properties with filters and pagination
 router.get('/', async (req, res) => {
@@ -201,7 +203,10 @@ router.post('/add', upload.array('images', 5), async (req, res) => {
 			}
 		}
 
-		const imagePaths = req.files.map(file => `/uploads/${file.filename}`);
+		const imagePaths = [];
+		for (const file of req.files) {
+			imagePaths.push(await uploadPropertyImage(file));
+		}
 		let parsedAmenities = {};
 		if (amenities) {
 			try {
@@ -468,7 +473,10 @@ router.put('/:id', upload.array('images', 5), async (req, res) => {
 			.filter(Boolean);
 		const existingImages = Array.isArray(property.images) ? property.images : [];
 		const remainingImages = existingImages.filter(img => !normalizedRemovedImages.includes(String(img)));
-		const newImages = req.files && req.files.length > 0 ? req.files.map(file => `/uploads/${file.filename}`) : [];
+		const newImages = [];
+		for (const file of req.files || []) {
+			newImages.push(await uploadPropertyImage(file));
+		}
 		const finalImages = [...remainingImages, ...newImages];
 		if (finalImages.length === 0) {
 			return res.status(400).json({ message: 'At least one image is required' });

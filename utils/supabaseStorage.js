@@ -4,7 +4,7 @@ const SUPABASE_URL = 'https://wucyooqzbsavqmrxzqfy.supabase.co';
 const SUPABASE_BUCKET = 'rental-town';
 
 function getSupabaseKey() {
-	return process.env.SUPABASE_KEY;
+	return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 }
 
 function safeFileName(originalName) {
